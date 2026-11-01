@@ -1,0 +1,40 @@
+name: Build Islandify Lite
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Create project
+        run: |
+          mkdir -p app/src/main/java/com/islandify/lite
+          cat > settings.gradle <<'EOF'
+          include ':app'
+          EOF
+          cat > build.gradle <<'EOF'
+          buildscript{repositories{google();mavenCentral()}dependencies{classpath 'com.android.tools.build:gradle:8.2.2'}}allprojects{repositories{google();mavenCentral()}}
+          EOF
+          cat > app/build.gradle <<'EOF'
+          plugins{ id 'com.android.application' }
+          android{ namespace 'com.islandify.lite'; compileSdk 34; defaultConfig{ applicationId 'com.islandify.lite'; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0-lite" }; buildTypes{ release{ minifyEnabled true; shrinkResources true } } }
+          dependencies{}
+          EOF
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE"/><application android:label="Islandify Lite"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity><service android:name=".IslandService" android:exported="false"/></application></manifest>
+          EOF
+          cp MainActivity.java app/src/main/java/com/islandify/lite/ 2>/dev/null || true
+          cp IslandService.java app/src/main/java/com/islandify/lite/ 2>/dev/null || true
+      - name: Build APK
+        run: |
+          gradle wrapper --gradle-version 8.5
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Islandify-Lite-1.8MB
+          path: app/build/outputs/apk/debug/*.apk
